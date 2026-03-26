@@ -16,3 +16,11 @@ build/
 .idea/
 .vscode/
 *.log
+
+# Large local datasets (keep structure with .gitkeep only)
+data/raw/**
+!data/raw/.gitkeep
+!data/raw/README.txt
+
+# Generated dataset index (paths are local)
+artifacts/manifest*.csv
