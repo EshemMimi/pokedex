@@ -84,6 +84,7 @@ Pick **one** for the MVP to avoid duplicated UI work.
 - **Python 3.10+**
 - **PyTorch** + **torchvision** (optional: **timm** for backbones)
 - **Gradio** *or* **Streamlit**
+- **pytest** (dev): `pip install -r requirements-dev.txt` then `pytest`
 
 ---
 
