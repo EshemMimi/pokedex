@@ -73,9 +73,9 @@ Pick **one** for the MVP to avoid duplicated UI work.
 |-------|--------|
 | **0** | Finalize 151-class mapping and `label_map.json`; define ingestion filter (dex 1–151 only). |
 | **1** | Ingest, normalize labels, dedupe, stratified split; manifest CSV (`path`, `dex`, `class_index`, `split`). Implemented: `python scripts/build_manifest.py --data-root …` (see `data/raw/README.txt`). |
-| **2** | Train a **transfer-learning** classifier (e.g. EfficientNet, ConvNeXt, or small ViT via `torchvision` / `timm`). Report val **Top-1** (and **Top-3**), confusion matrix. |
-| **3** | Freeze best checkpoint; implement inference with **identical** preprocessing to training. Optional: calibration if confidence is shown to users. |
-| **4** | `app.py`: Gradio or Streamlit — upload (and optionally camera) → **Top-3** + names from `label_map.json`. |
+| **2** | Train a **transfer-learning** classifier; report val **Top-1** / **Top-3**. Baseline: **ResNet-18** + ImageNet weights (`python scripts/train.py`). Saves `artifacts/best_model.pt` + `train_config.json`. |
+| **3** | Inference uses **val** preprocessing from `pokedex.training.build_transforms` (`pokedex/inference.TorchPredictor`). Loads `artifacts/best_model.pt`; optional `train_config.json`. |
+| **4** | `app.py` (Gradio): loads checkpoint when present, else **dummy** predictor; Top-3 + names from `label_map.json`. |
 
 ---
 
@@ -84,6 +84,7 @@ Pick **one** for the MVP to avoid duplicated UI work.
 - **Python 3.10+**
 - **PyTorch** + **torchvision** (optional: **timm** for backbones)
 - **Gradio** *or* **Streamlit**
+- **pytest** (dev): `pip install -r requirements-dev.txt` then `pytest`
 
 ---
 
@@ -109,5 +110,7 @@ Pick **one** for the MVP to avoid duplicated UI work.
 
 1. ~~Add `label_map.json` for dex **1–151**.~~
 2. ~~Implement data ingestion (manifest) for Gen 1.~~ Place datasets under `data/raw/`, then run `scripts/build_manifest.py`.
-3. Train a baseline classifier (Phase 2) using `artifacts/manifest.csv`.
-4. Wire **Gradio** to the trained checkpoint and shared preprocessing.
+3. ~~Train a baseline classifier (Phase 2) using `artifacts/manifest.csv`.~~ Run `python scripts/train.py` (after installing `torch` / `torchvision`).
+4. ~~Gradio + trained checkpoint (Phase 3–4).~~ Run `python app.py` after training; uses `pokedex/inference.py` when `artifacts/best_model.pt` exists.
+
+**Polish (optional):** test-set evaluation script, calibration for displayed probabilities, camera input in Gradio.

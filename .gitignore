@@ -11,6 +11,7 @@ venv/
 dist/
 build/
 .pytest_cache/
+tests/__pycache__/
 .mypy_cache/
 .ruff_cache/
 .idea/
@@ -24,3 +25,8 @@ data/raw/**
 
 # Generated dataset index (paths are local)
 artifacts/manifest*.csv
+
+# Training outputs
+artifacts/*.pt
+artifacts/training_history.json
+artifacts/train_config.json
