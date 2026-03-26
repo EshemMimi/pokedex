@@ -1,4 +1,4 @@
-"""Local Gradio UI for Gen 1 Pokédex MVP. Uses a dummy predictor until a trained checkpoint exists."""
+"""Local Gradio UI for Gen 1 Pokédex MVP. Uses trained weights when present, else a dummy predictor."""
 
 from __future__ import annotations
 
@@ -33,13 +33,13 @@ def load_label_map() -> list[dict]:
 
 
 class DummyPredictor:
-    """Returns a random Top-3 over Gen 1 classes (replace with torch model + weights)."""
+    """Random Top-3 (used when no checkpoint or PyTorch unavailable)."""
 
     def __init__(self, classes: list[dict]) -> None:
         self._classes = classes
 
     def predict(self, image) -> list[tuple[int, str, float]]:
-        _ = image  # real model would preprocess tensor(batch)
+        _ = image
         k = min(3, len(self._classes))
         indices = random.sample(range(len(self._classes)), k)
         raw = [random.random() for _ in range(k)]
@@ -53,12 +53,46 @@ class DummyPredictor:
         return rows
 
 
+def _resolve_predictor(classes: list[dict]):
+    """Returns (predictor, description_md_line)."""
+    try:
+        from pokedex.inference import try_load_torch_predictor
+    except ImportError:
+        return (
+            DummyPredictor(classes),
+            "PyTorch is not installed; using **dummy** Top-3. "
+            "Install with `pip install torch torchvision` and add `artifacts/best_model.pt`.",
+        )
+    pred, status = try_load_torch_predictor(classes, ROOT)
+    if pred is not None:
+        return (
+            pred,
+            "**Trained model** (ResNet-18): predictions from `artifacts/best_model.pt`.",
+        )
+    if status == "no_checkpoint":
+        return (
+            DummyPredictor(classes),
+            "No checkpoint at `artifacts/best_model.pt`; using **dummy** Top-3. "
+            "Train with `python scripts/train.py` first.",
+        )
+    if status == "missing_train_config":
+        return (
+            DummyPredictor(classes),
+            "Checkpoint is missing `num_classes` / `image_size` metadata; using **dummy** Top-3. "
+            "Re-train with the current `scripts/train.py` or restore `artifacts/train_config.json`.",
+        )
+    return (
+        DummyPredictor(classes),
+        f"Could not load checkpoint ({status}); using **dummy** Top-3.",
+    )
+
+
 def build_demo(classes: list[dict]) -> gr.Blocks:
-    predictor = DummyPredictor(classes)
+    predictor, banner_md = _resolve_predictor(classes)
 
     def predict_ui(image):
         if image is None:
-            return "Upload an image to see dummy Top-3 predictions."
+            return "Upload an image to see Top-3 predictions."
         rows = predictor.predict(image)
         lines = [
             f"{i + 1}. **#{dex:03d}** {name} — {prob * 100:.1f}%"
@@ -67,11 +101,7 @@ def build_demo(classes: list[dict]) -> gr.Blocks:
         return "\n\n".join(lines)
 
     with gr.Blocks(title="Pokédex (MVP)") as demo:
-        gr.Markdown(
-            "# Pokédex — Generation 1\n"
-            "Dummy model: **random Top-3** with fake probabilities. "
-            "Swap `DummyPredictor` for a trained classifier when ready."
-        )
+        gr.Markdown("# Pokédex — Generation 1\n" + banner_md)
         img = gr.Image(type="pil", label="Photo or artwork")
         out = gr.Markdown(label="Predictions")
         img.change(fn=predict_ui, inputs=img, outputs=out)
@@ -82,7 +112,6 @@ def build_demo(classes: list[dict]) -> gr.Blocks:
 def main() -> None:
     classes = load_label_map()
     demo = build_demo(classes)
-    # server_port=None: try 7860, then 7861… if the default port is already in use.
     demo.launch(server_name="127.0.0.1", server_port=None, inbrowser=True, ssr_mode=False)
 
 
